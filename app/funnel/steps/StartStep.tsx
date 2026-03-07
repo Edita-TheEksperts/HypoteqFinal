@@ -1,0 +1,337 @@
+"use client";
+import { useState, useEffect } from "react";
+import { useFunnelStore } from "@/src/store/funnelStore";
+import { useTranslation } from "@/hooks/useTranslation";
+
+function StartStep({
+  customerType,
+  setCustomerType,
+  clientData,
+  setClientData,
+  saveStep,
+}: any) {
+  const { t } = useTranslation();
+  const [errors, setErrors] = useState<ErrorFields>({});
+
+  interface ErrorFields {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    partnerEmail?: string;  
+  }
+
+  const validateDirectCustomer = () => {
+    const newErrors: ErrorFields = {};
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // Swiss phone: allow +41, 0, spaces, dashes, min 9 digits
+    const phoneRegex = /^((\+41|0)[\d\s\-]{8,})$/;
+
+if (!clientData.firstName)
+  newErrors.firstName = t("funnel.errorFirstName" as any);
+
+if (!clientData.lastName)
+  newErrors.lastName = t("funnel.errorLastName" as any);
+
+if (!clientData.email) {
+  newErrors.email = t("funnel.errorEmail" as any);
+} else if (!emailRegex.test(clientData.email)) {
+  newErrors.email = t("funnel.validEmailError" as any);
+}
+
+if (!clientData.phone) {
+  newErrors.phone = t("funnel.errorPhone" as any);
+} else if (!phoneRegex.test(clientData.phone)) {
+  newErrors.phone = t("funnel.validPhoneError" as any);
+}
+
+
+    setErrors(newErrors);
+
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Default to direct (fix infinite re-render)
+  useEffect(() => {
+    if (!customerType) {
+      setCustomerType("direct");
+    }
+  }, []);
+  const { setEmail } = useFunnelStore();
+
+  return (
+    <div className="w-full max-w-[1400px] mx-auto px-4 md:px-8 pt-[150px] md:pt-0 lg:pl-20 lg:pr-32 -mt-10">
+      {/* === Title === */}
+      <h2 className="text-3xl md:text-4xl lg:text-[48px] font-normal text-[#132219] mb-1 font-sfpro">
+        {t("funnel.startTitle" as any)}
+      </h2>
+
+      {/* === Subtitle === */}
+      <p className="text-lg md:text-xl lg:text-[24px] font-normal font-sfpro text-[#132219]/80 mb-6">
+        {t("funnel.startSubtitle" as any)}
+      </p>
+
+      {/* === Partner Section (only show if not partner) === */}
+      {customerType !== "partner" && (
+        <div className="mb-8 md:mb-10 lg:mb-12 border-t border-b border-[#132219] py-4">
+          <p className="text-lg md:text-xl lg:text-[20px] font-semibold font-sfpro text-[#132219] mb-1">
+            {t("funnel.partnerTitle" as any)}
+          </p>
+          <div className="flex items-center gap-4 justify-between">
+            <p className="text-base md:text-lg font-normal font-sfpro text-[#132219]/80">
+              {t("funnel.partnerDescription" as any)}
+            </p>
+            <button
+              onClick={() => setCustomerType("partner")}
+              className="
+                px-8 py-2
+                rounded-full
+                bg-[#CAF476]
+                border border-[#132219]
+                text-[14px] font-medium text-[#132219]
+                hover:bg-[#b8e966]
+                transition
+                whitespace-nowrap
+              "
+            >
+              {t("funnel.partnerButton" as any)}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* === DIRECT CUSTOMER FORM === */}
+      {customerType === "direct" && (
+        <>
+          {/* Private Customer Title & Description */}
+          <div className="mb-6">
+            <p className="text-lg md:text-xl lg:text-[20px] font-semibold font-sfpro text-[#132219] mb-1">
+              {t("funnel.privateCustomerTitle" as any)}
+            </p>
+            <p className="text-base md:text-lg font-normal font-sfpro text-[#132219]/80">
+              {t("funnel.privateCustomerDescription" as any)}
+            </p>
+          </div>
+          
+          {/* Row 1 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 md:mb-7 lg:mb-8">
+            <div>
+              <label className="text-[14px] font-medium text-[#132219]">
+                {t("funnel.firstName" as any)}
+              </label>
+
+              <input
+                className={`w-full mt-1 rounded-full px-5 py-2 text-[#132219]
+      border 
+      ${errors.firstName ? "border-red-500" : "border-[#132219] opacity-80"}
+    `}
+                value={clientData.firstName}
+                onChange={(e) => {
+                  setClientData((p: any) => ({
+                    ...p,
+                    firstName: e.target.value,
+                  }));
+                  setErrors((prev: any) => ({ ...prev, firstName: "" })); // remove error when typing
+                }}
+              />
+
+              {errors.firstName && (
+                <p className="text-red-500 text-[12px] mt-1">
+                  {errors.firstName}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="text-[14px] font-medium text-[#132219]">
+                {t("funnel.lastName" as any)}
+              </label>
+
+              <input
+                className={`w-full mt-1 rounded-full px-5 py-2 text-[#132219]
+      border 
+      ${errors.lastName ? "border-red-500" : "border-[#132219] opacity-80"}
+    `}
+                value={clientData.lastName}
+                onChange={(e) => {
+                  setClientData((p: any) => ({
+                    ...p,
+                    lastName: e.target.value,
+                  }));
+                  setErrors((prev: any) => ({ ...prev, lastName: "" }));
+                }}
+              />
+
+              {errors.lastName && (
+                <p className="text-red-500 text-[12px] mt-1">
+                  {errors.lastName}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Row 2 */}
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+            <div>
+              <label className="text-[14px] font-medium text-[#132219]">
+                {t("funnel.email" as any)}
+              </label>
+
+              <input
+                className={`w-full mt-1 rounded-full px-5 py-2 text-[#132219]
+      border 
+      ${errors.email ? "border-red-500" : "border-[#132219] opacity-80"}
+    `}
+                value={clientData.email}
+                onChange={(e) => {
+                  setClientData((p: any) => ({ ...p, email: e.target.value }));
+                  setErrors((prev: any) => ({ ...prev, email: "" }));
+                }}
+              />
+
+              {errors.email && (
+                <p className="text-red-500 text-[12px] mt-1">{errors.email}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="text-[14px] font-medium text-[#132219]">
+                {t("funnel.phone" as any)}
+              </label>
+
+              <input
+                className={`w-full mt-1 rounded-full px-5 py-2 text-[#132219]
+      border 
+      ${errors.phone ? "border-red-500" : "border-[#132219] opacity-80"}
+    `}
+                value={clientData.phone}
+                onChange={(e) => {
+                  setClientData((p: any) => ({ ...p, phone: e.target.value }));
+                  setErrors((prev: any) => ({ ...prev, phone: "" }));
+                }}
+              />
+
+              {errors.phone && (
+                <p className="text-red-500 text-[12px] mt-1">{errors.phone}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Footer */}
+<div className="flex flex-row items-center justify-end w-full mt-0 gap-4">
+            <button
+              onClick={() => {
+                if (!validateDirectCustomer()) return; // STOP if invalid
+                setEmail(clientData.email);
+                saveStep();
+              }}
+              className="px-8 py-2 mt-2 lg:mt-0 bg-[#CAF476] border border-[#132219] rounded-full text-[14px] font-medium text-[#132219]"
+            >
+              {t("funnel.startMortgageRequest" as any)}
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* === PARTNER FORM === */}
+      {customerType === "partner" && (
+        <>
+          <div className="grid grid-cols-1 gap-10 mb-10">
+            <div>
+              <label className="text-[14px] font-medium text-[#132219]">
+                {t("funnel.email" as any)}
+              </label>
+ <input
+  className={`w-full mt-1 rounded-full px-5 py-2 text-[#132219]
+    border 
+    ${errors.partnerEmail ? "border-red-500" : "border-[#132219] opacity-80"}
+  `}
+  value={clientData.partnerEmail}
+  onChange={(e) => {
+    setClientData((p: any) => ({
+      ...p,
+      partnerEmail: e.target.value,
+    }));
+    setErrors((prev: any) => ({ ...prev, partnerEmail: "" }));
+  }}
+/>
+
+{errors.partnerEmail && (
+  <p className="text-red-500 text-[12px] mt-1">{errors.partnerEmail}</p>
+)}
+
+            </div>
+          </div>
+
+          <div className="flex justify-between mt-6">
+            <button
+              onClick={() => setCustomerType("direct")}
+              className="px-8 py-2 rounded-full border border-[#132219] text-[#132219] hover:bg-[#F7F7F7]"
+            >
+              {t("funnel.backButtonText" as any)}
+            </button>
+            <button
+        onClick={() => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  
+  if (!clientData.partnerEmail) {
+    setErrors((prev: any) => ({ ...prev, partnerEmail: t("funnel.errorPartnerEmail" as any) }));
+    return;
+  }
+  
+  if (!emailRegex.test(clientData.partnerEmail)) {
+    setErrors((prev: any) => ({ ...prev, partnerEmail: t("funnel.validEmailError" as any) }));
+    return;
+  }
+
+  setEmail(clientData.partnerEmail);
+  saveStep();
+}}
+              className="px-8 py-2 bg-[#CAF476] border border-[#132219] rounded-full text-[14px] font-medium text-[#132219]"
+            >
+              {t("funnel.continue" as any)}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* REUSABLE COMPONENTS */
+function InputField({ label, value, onChange, type = "text" }: any) {
+  return (
+    <div className="flex flex-col">
+      <label className="font-medium text-[#132219]">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full mt-2 border px-4 py-3 rounded-xl"
+      />
+    </div>
+  );
+}
+
+function SelectField({ label, value, onChange, options }: any) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col">
+      <label className="font-medium text-[#132219]">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full mt-2 border px-4 py-3 rounded-xl"
+      >
+        <option value="">{t("funnel.pleaseSelect" as any)}</option>
+        {options.map(([val, text]: any) => (
+          <option key={val} value={val}>
+            {text}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+export default StartStep;

@@ -1,0 +1,842 @@
+"use client";
+
+import { useState, useMemo, useEffect, useRef } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useTranslation } from "@/hooks/useTranslation";
+
+// Helper: Mindest-Einkommen nur für Zweitwohnsitz-Kauf (Annäherung wie Excel)
+function getMinIncome(
+  residenceType: "haupt" | "zweit",
+  propertyPrice: number,
+  ownFunds: number
+) {
+  if (residenceType === "haupt") return 0;
+
+  // Zweitwohnsitz-Kauf:
+  if (propertyPrice > 0 && ownFunds > 0) {
+    const hypothek = propertyPrice - ownFunds;
+    const kostenJahr = hypothek * (0.05 + 0.008); // 5% Zins + 0.8% Unterhalt
+    return kostenJahr / 0.35; // 35% Tragbarkeitsschwelle
+  }
+  return 0;
+}
+
+export default function Calculator() {
+  const pathname = usePathname();
+  // Defensive: pathname can be null
+  const safePathname = pathname || "/de";
+  const pathLocale = (safePathname.split("/")[1] || "de") as "de" | "en" | "fr" | "it";
+  const { t } = useTranslation(pathLocale);
+
+  // Basis-States
+  const [propertyPrice, setPropertyPrice] = useState(0); // Kaufpreis / Immobilienwert (B8)
+  const [ownFunds, setOwnFunds] = useState(0); // Eigenmittel (B9)
+  const [income, setIncome] = useState(0); // Brutto-Haushaltseinkommen p.a. (B11)
+
+  // Refinanzierung
+  const [existingMortgage, setExistingMortgage] = useState(0); // B9: Bisherige Hypothek
+  const [mortgageIncrease, setMortgageIncrease] = useState(0); // B10: Hypothekerhoehung
+
+  const [residenceType, setResidenceType] = useState<"haupt" | "zweit">("haupt");
+  const [loanType, setLoanType] = useState<"purchase" | "refinancing" | null>(
+    "purchase"
+  );
+
+
+  const [interestLabels, setInterestLabels] = useState<string[]>([]);
+  const [interestRates, setInterestRates] = useState<number[]>([]);
+  const [interestOptionIndex, setInterestOptionIndex] = useState(0);
+  const [openDropdown, setOpenDropdown] = useState(false);
+
+  // Default params (should match your business logic)
+  const params = {
+    maxBelehnung: 0.8,
+    firstMortgageLimit: 0.6667,
+    amortizationYears: 15,
+    maintenanceRate: 0.008,
+  };
+
+  // Dynamic max mortgage for slider (can be customized)
+  const dynamicMaxMortgage = params.maxBelehnung * propertyPrice;
+
+  useEffect(() => {
+      fetch("/api/interest")
+        .then((res) => res.json())
+        .then((data) => {
+          // data: [{ rate, position }]
+          const staticLabels = [
+            "SARON",
+            "1Y",
+            "2Y",
+            "3Y",
+            "4Y",
+            "5Y",
+            "6Y",
+            "7Y",
+            "8Y",
+            "9Y",
+            "10Y"
+          ];
+          if (Array.isArray(data)) {
+            setInterestLabels(
+              data.map((item: any, idx: number) => {
+                const label = staticLabels[item.position ?? idx] || `Option ${idx+1}`;
+                // Format: SARON 0.90%, 1Y 0.97%, etc.
+                return `${label} ${(item.rate * 100).toFixed(2)}%`;
+              })
+            );
+            setInterestRates(data.map((item: any) => item.rate));
+          }
+        });
+    }, []);
+
+  const effectiveRate = useMemo(() => {
+    if (interestRates.length > 0 && interestOptionIndex >= 0 && interestOptionIndex < interestRates.length) {
+      return interestRates[interestOptionIndex];
+    }
+    return 0.01;
+  }, [interestRates, interestOptionIndex]);
+
+  // --- Hypothekenbeträge Kauf / Refi ---
+
+  // Kauf: Total-Hypothek wie B51 = Kaufpreis - Eigenmittel
+  const totalMortgagePurchase = Math.max(0, propertyPrice - ownFunds);
+
+  // Refi: Total-Hypothek si në Excel = B9 + B10
+  const totalMortgageRefi = Math.max(0, existingMortgage + mortgageIncrease);
+
+  // Për të gjitha llogaritjet (Tragbarkeit dhe Monatskosten)
+  const totalMortgageForCalc =
+    loanType === "purchase" ? totalMortgagePurchase : totalMortgageRefi;
+
+  // Max. erlaubte Hypothek für Eligibility (B14/B22)
+  const maxMortgageAllowed = params.maxBelehnung * propertyPrice;
+  const mortgageNeed =
+    loanType === "purchase" ? totalMortgagePurchase : totalMortgageRefi;
+  const totalMortgageCapped = Math.min(mortgageNeed, maxMortgageAllowed);
+
+  // --- EXPLICIT LTV CALCULATION ---
+  // LTV = Total Mortgage / Property Value
+  const ltv = propertyPrice > 0 ? totalMortgageForCalc / propertyPrice : 0;
+  
+  // LTV Limit based on residence type
+  const ltvLimit = residenceType === "haupt" ? 0.8 : 0.65;
+  
+  // LTV Check - independent rule
+  const ltvOk = ltv <= ltvLimit;
+
+  // 1. und 2. Hypothek (nur für Kauf + Hauptwohnsitz relevant)
+  const firstLimitAbs =
+    residenceType === "haupt"
+      ? params.firstMortgageLimit * propertyPrice // B52 = B15*B8
+      : 0;
+
+  // B53 = B51-B52 (nicht negativ)
+  const secondMortgage =
+    residenceType === "haupt"
+      ? Math.max(0, totalMortgageForCalc - firstLimitAbs)
+      : 0;
+
+  // Amortisationsrate wie (B14-B15)/B18
+  const amortizationRate =
+    residenceType === "haupt" && params.amortizationYears > 0
+      ? (params.maxBelehnung - params.firstMortgageLimit) /
+        params.amortizationYears
+      : 0;
+
+  // --- AFFORDABILITY CALCULATION (STRESS INTEREST ONLY) ---
+  // MUST use stress interest (5%) for eligibility, NOT product interest
+  
+  let affordability = 0;
+  let affordabilityCHF = 0;
+
+  if (residenceType === "haupt") {
+    // Primary residence: includes amortisation
+    affordabilityCHF = totalMortgageForCalc * (0.05 + 0.008 + ((0.8 - 0.6667) / 15));
+  } else {
+    // Secondary residence: no amortisation
+    affordabilityCHF = totalMortgageForCalc * (0.05 + 0.008);
+  }
+  
+  affordability = income > 0 ? affordabilityCHF / income : 0;
+  
+  // Affordability Check - independent rule
+  // Should be OK only if there's income AND affordability is within limit
+  const affordabilityOk = income > 0 && affordability <= 0.35;
+  
+  const minIncomeRequired =
+    affordabilityCHF > 0 ? Math.ceil(affordabilityCHF / 0.35) : 0;
+
+  // Minimum-Eigenmittel (Kauf)
+  const minOwnFunds =
+    loanType === "purchase"
+      ? propertyPrice *
+        (residenceType === "zweit" ? 0.35 : 0.2) // 35%/20%
+      : 0;
+
+  const isEquityOK =
+    loanType === "purchase" ? (propertyPrice > 0 && ownFunds >= minOwnFunds) : true;
+
+  // --- TOP BOX AGGREGATOR ONLY ---
+  // eligible is ONLY an aggregation of independent checks
+  const isEligible = ltvOk && affordabilityOk && isEquityOK;
+  
+  // Keep legacy variables for backward compatibility in UI
+  const tragbarkeitPercent = affordability;
+  const tragbarkeitCHF = affordabilityCHF;
+  const isTragbarkeitOK = affordabilityOk;
+  const isBelehnungOK = ltvOk;
+  const belehnung = ltv;
+  const belehnungPurchase = propertyPrice > 0 ? totalMortgagePurchase / propertyPrice : 0;
+  const belehnungRefi = propertyPrice > 0 ? totalMortgageRefi / propertyPrice : 0;
+
+  // --- MONTHLY COSTS (PRODUCT INTEREST RATE) ---
+  // Monthly costs MUST use effectiveRate (product interest), NOT stress rate
+  // Changing SARON/5Y/10Y should ONLY affect monthly costs, NOT affordability
+
+  // Maintenance costs = 0.8% of property value
+  const maintenanceYear = propertyPrice * params.maintenanceRate;
+  const monthlyMaintenance = maintenanceYear / 12;
+
+  // For refinancing - old monthly cost
+  const secondMortgageOld =
+    residenceType === "haupt"
+      ? Math.max(0, existingMortgage - firstLimitAbs)
+      : 0;
+  const oldAmortYear =
+    residenceType === "haupt" && params.amortizationYears > 0
+      ? Math.max(0, secondMortgageOld / params.amortizationYears)
+      : 0;
+
+  const oldInterestYear = existingMortgage * effectiveRate; // Product interest
+  const oldMaintenanceYear = propertyPrice * params.maintenanceRate;
+  const monthlyOld = (oldInterestYear + oldMaintenanceYear + oldAmortYear) / 12;
+
+  // For refinancing - new monthly cost
+  const newTotal = totalMortgageRefi;
+  const newInterestYear = newTotal * effectiveRate; // Product interest
+  const newMaintenanceYear = propertyPrice * params.maintenanceRate;
+  const newSecondMortgage =
+    residenceType === "haupt"
+      ? Math.max(0, newTotal - firstLimitAbs)
+      : 0;
+  const newAmortYear =
+    residenceType === "haupt" && params.amortizationYears > 0
+      ? Math.max(0, newSecondMortgage / params.amortizationYears)
+      : 0;
+  const monthlyNew = (newInterestYear + newMaintenanceYear + newAmortYear) / 12;
+
+  // General monthly costs (purchase or refinancing)
+  const interestYearEffective = totalMortgageForCalc * effectiveRate; // Product interest
+  const monthlyInterest = interestYearEffective / 12;
+  
+  const amortizationYear =
+    residenceType === "haupt" && params.amortizationYears > 0
+      ? Math.max(0, secondMortgage / params.amortizationYears)
+      : 0;
+  const monthlyAmortization = amortizationYear / 12;
+  
+  // Total monthly cost with product interest
+  const monthlyCost = monthlyInterest + monthlyMaintenance + monthlyAmortization;
+
+  // Slider-Visual-Limits
+  const minVisualMax = 100000;
+  const sliderMaxExisting = Math.max(propertyPrice, minVisualMax);
+  const sliderMaxNew = Math.max(dynamicMaxMortgage, minVisualMax);
+
+  const infoTitle = isEligible
+    ? loanType === "purchase"
+      ? t("calculator.financingPossiblePurchase")
+      : t("calculator.financingPossibleRefi")
+    : t("calculator.financingNotPossible");
+
+  // Formatting
+  const formatCHF = (num: number) =>
+    "CHF " + Math.round(num).toLocaleString("de-CH");
+  const formatPercent = (num: number) =>
+    (num * 100).toFixed(1).replace(".", ",") + "%";
+
+  // UI
+  return (
+    <section
+      id="calculator"
+      className="flex flex-col items-center bg-white py-6 px-4 sm:py-12 sm:px-8 md:px-12 lg:px-[116px] mb-[60px] sm:mb-[120px] font-sans text-[#132219]"
+    >
+      <div className="max-w-full lg:max-w-[1280px] flex flex-col lg:flex-row justify-between items-start w-full mx-auto gap-[10px] lg:gap-[80px] lg:items-stretch">
+        {/* Linke Seite – Eingaben */}
+        <div className="flex flex-col w-full px-2 sm:px-4 max-w-full lg:max-w-[536px] gap-[24px] sm:gap-[48px]">
+          <div className="flex flex-col lg:flex-row items-start justify-between w-full mb-6 sm:mb-10 mt-4 sm:mt-6 lg:mb-20 lg:mt-10">
+            <h1
+              className="
+                text-[40px] sm:text-[52px] lg:text-[72px]
+                font-[500]
+                leading-[110%] lg:leading-[100%]
+                tracking-[-0.72px]
+                text-[#132219]
+                max-w-full lg:max-w-[536px]
+                text-left
+              "
+              style={{ fontFamily: "'SF Pro Display', sans-serif" }}
+            >
+              {t("calculator.title")}
+            </h1>
+          </div>
+
+          {/* Input-Block */}
+          <div className="flex flex-col gap-[6px] sm:gap-[10px] mt-[-6px]">
+            {/* Toggle Kauf / Refi */}
+            <div className="flex gap-[12px]">
+              <ToggleButton
+                label={t("calculator.purchase")}
+                active={loanType === "purchase"}
+                onClick={() => setLoanType("purchase")}
+              />
+              <ToggleButton
+                label={t("calculator.refinancing")}
+                active={loanType === "refinancing"}
+                onClick={() => setLoanType("refinancing")}
+              />
+            </div>
+
+            {/* Haupt- / Zweitwohnsitz */}
+            {loanType && (
+              <div className="flex w-full border border-[#132219] rounded-full p-[3px]">
+                <SubToggle
+                  label={t("calculator.mainResidence")}
+                  active={residenceType === "haupt"}
+                  onClick={() => setResidenceType("haupt")}
+                />
+                <SubToggle
+                  label={t("calculator.secondaryResidence")}
+                  active={residenceType === "zweit"}
+                  onClick={() => setResidenceType("zweit")}
+                />
+              </div>
+            )}
+
+            {/* Kaufpreis / Immobilienwert */}
+            <SliderInput
+              label={t("calculator.purchasePrice") + " / Immobilienwert"}
+              value={propertyPrice}
+              setValue={setPropertyPrice}
+              min={0}
+              max={5000000}
+            />
+
+            {/* Refi-spezifische Inputs */}
+            {loanType === "refinancing" && (
+              <>
+                <SliderInput
+                  label={t("calculator.existingMortgage" as any)}
+                  value={existingMortgage}
+                  setValue={setExistingMortgage}
+                  min={0}
+                  max={propertyPrice}
+                />
+                <SliderInput
+                  label={t("calculator.mortgageIncrease" as any)}
+                  value={mortgageIncrease}
+                  setValue={setMortgageIncrease}
+                  min={0}
+                  max={params.maxBelehnung * propertyPrice}
+                />
+              </>
+            )}
+
+            {/* Kauf-Eigenmittel */}
+            {loanType === "purchase" && (
+              <SliderInput
+                label={t("calculator.ownFunds")}
+                value={ownFunds}
+                setValue={setOwnFunds}
+                min={0}
+                max={propertyPrice}
+                minRequired={minOwnFunds}
+              />
+            )}
+
+            {/* Einkommen */}
+            <SliderInput
+              label={t("calculator.grossIncome")}
+              value={income}
+              setValue={setIncome}
+              min={0}
+              max={10000000}
+              minRequired={minIncomeRequired}
+            />
+
+            {/* Zins-Dropdown */}
+            <div className="flex flex-col gap-[6px] mt-[10px] w-full">
+              <label className="text-[16px] font-medium text-[#132219]">
+                {t("calculator.selectInterest")}
+              </label>
+
+              <div className="relative w-full mt-[4px]">
+                <button
+                  onClick={() => setOpenDropdown((prev) => !prev)}
+                  className="
+                    w-full h-[40px] 
+                    bg-white 
+                    border border-[#132219] 
+                    rounded-[50px]
+                    flex items-center justify-between
+                    px-[16px]
+                    text-[16px] font-medium
+                  "
+                >
+                  <span className="text-[#132219]">{interestLabels[interestOptionIndex]}</span>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    className={`transition-transform duration-300 ${
+                      openDropdown ? "rotate-180" : "rotate-0"
+                    }`}
+                  >
+                    <path
+                      d="M5 7L10 12L15 7"
+                      stroke="#132219"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+
+                {openDropdown && (
+                  <div
+                    className="
+                      absolute left-0 top-[45px] w-full 
+                      bg-white border border-[#132219]
+                      rounded-[10px]
+                      shadow-lg z-[9999]
+                      py-2
+                    "
+                    style={{zIndex: 9999}}
+                  >
+                    {interestLabels.map((label, idx) => (
+                      <button
+                        key={label}
+                        className="
+                          w-full text-left px-4 py-2 
+                          text-[16px] text-[#132219] 
+                          hover:bg-[#F4F4F4]
+                        "
+                        onClick={() => {
+                          setInterestOptionIndex(idx);
+                          setOpenDropdown(false);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Rechte Seite – Ausgaben */}
+        <div className="px-2 sm:px-4 flex flex-col items-start w-full max-w-full lg:max-w-[628px] lg:mt-[253px] mt-[20px] sm:mt-[40px]">
+          {/* InfoBox */}
+          <div className="flex flex-col gap-[36px] w-full">
+            <InfoBox
+              title={infoTitle}
+              value={formatCHF(totalMortgageForCalc)}
+              red={!isEligible}
+              loanType={loanType}
+            />
+          </div>
+
+          {/* Progress-Boxen */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-[10px] w-full mt-[10px] sm:mt-[20px] mb-[6px] sm:mb-[10px]">
+            {/* Kauf */}
+            {loanType === "purchase" && (
+              <>
+                <ProgressBox
+                  title={t("calculator.ownFunds")}
+                  value={formatPercent(
+                    propertyPrice > 0 ? ownFunds / propertyPrice : 0
+                  )}
+                  current={formatCHF(ownFunds)}
+                  total={formatCHF(propertyPrice)}
+                  loanType={loanType}
+                  red={!isEquityOK}
+                  thresholdLabel={
+                    residenceType === "zweit" ? "(min. 35%)" : "(min. 20%)"
+                  }
+                />
+
+                <ProgressBox
+                  title={t("calculator.affordability")}
+                  value={formatPercent(tragbarkeitPercent)}
+                  current={formatCHF(tragbarkeitCHF)}
+                  total={formatCHF(income)}
+                  loanType={loanType}
+                  red={!isTragbarkeitOK}
+                />
+              </>
+            )}
+
+            {/* Refinanzierung */}
+            {loanType === "refinancing" && (
+              <>
+                <ProgressBox
+                  title={t("calculator.loanToValue")}
+                  value={formatPercent(belehnungRefi)}
+                  current={formatCHF(totalMortgageRefi)}
+                  total={formatCHF(propertyPrice)}
+                  loanType={loanType}
+                  red={!isBelehnungOK}
+                />
+
+                <ProgressBox
+                  title={t("calculator.affordability")}
+                  value={formatPercent(tragbarkeitPercent)}
+                  current={formatCHF(tragbarkeitCHF)}
+                  total={formatCHF(income)}
+                  loanType={loanType}
+                  red={!isTragbarkeitOK}
+                />
+              </>
+            )}
+          </div>
+
+          {/* Kosten-Boxen */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-[10px] w-full mt-[8px] sm:mt-[16px]">
+            {loanType === "refinancing" ? (
+              <>
+                <SmallBox
+                  title={t("calculator.previousMonthlyCost")}
+                  value={formatCHF(monthlyOld)}
+                />
+                <SmallBox
+                  title={t("calculator.maintenanceCosts")}
+                  value={formatCHF(monthlyMaintenance)}
+                />
+                <SmallBox
+                  title={t("calculator.interest")}
+                  value={formatCHF(monthlyInterest)}
+                />
+                <SmallBox
+                  title={t("calculator.totalMonthlyCost")}
+                  value={formatCHF(monthlyCost)}
+                  highlight
+                />
+              </>
+            ) : (
+              <>
+                <SmallBox
+                  title={t("calculator.amortization")}
+                  value={formatCHF(monthlyAmortization)}
+                />
+                <SmallBox
+                  title={t("calculator.secondaryCosts")}
+                  value={formatCHF(monthlyMaintenance)}
+                />
+                <SmallBox
+                  title={t("calculator.interestCosts")}
+                  value={formatCHF(monthlyInterest)}
+                />
+                <SmallBox
+                  title={t("calculator.monthlyCosts")}
+                  value={formatCHF(monthlyCost)}
+                  highlight
+                />
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+          {/* CTA */}
+    <Link
+      href={`/${pathLocale}/funnel`}
+      className="max-w-[1280px] w-full col-span-2 block px-4"
+    >
+        <button className="w-full h-[41px] mt-[28px] rounded-full bg-[#132219] text-white text-[18px] font-sfpro font-medium text-center leading-normal hover:opacity-90 transition">
+          {t("calculator.continueMortgage")}
+        </button>
+      </Link>
+    </section>
+  );
+}
+
+/* -------- UI-Sub-Komponenten -------- */
+
+function ToggleButton({ label, active, onClick }: any) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex-1 h-[40px] rounded-full border border-[#132219] text-[18px] font-medium transition-all duration-300 ${
+        active
+          ? "bg-[linear-gradient(270deg,#CAF476_0%,#E3F4BF_100%)]"
+          : "bg-white opacity-80"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function SubToggle({ label, active, onClick }: any) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex-1 flex justify-center items-center h-[40px] rounded-[48px] text-[18px] font-semibold transition-all duration-300 ${
+        active
+          ? "bg-[#132219] text-[#CAF47E]"
+          : "bg-transparent text-[#132219] opacity-70"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function SliderInput({ label, value, setValue, min, max, minRequired }: any) {
+  // Always use 0 as the actual minimum for the slider
+  const sliderMin = 0;
+  const percentage = max > sliderMin ? ((value - sliderMin) / (max - sliderMin)) * 100 : 0;
+  const [inputValue, setInputValue] = useState(value.toLocaleString("de-CH"));
+  const [isFocused, setIsFocused] = useState(false);
+
+  // Sync inputValue with value when not focused
+  useEffect(() => {
+    if (!isFocused) {
+      setInputValue(value.toLocaleString("de-CH"));
+    }
+  }, [value, isFocused]);
+
+  useEffect(() => {
+    return () => {};
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-[6px] relative">
+      <div className="flex justify-between items-center">
+        <label className="text-[16px] font-medium">{label}</label>
+        <div className="w-[16px] h-[16px] flex items-center justify-center rounded-full bg-[#626D64]">
+          <span className="text-white text-[10px] font-medium">?</span>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between border border-[#A8A8A8] rounded-full px-5 py-2">
+        <input
+          type="text"
+          value={inputValue}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => {
+            setIsFocused(false);
+            const raw = inputValue.replace(/[^0-9]/g, "");
+            const parsed = Number(raw);
+            if (!isNaN(parsed) && parsed >= 0) {
+              // Allow any value from 0 to max, don't enforce minRequired
+              const bounded = Math.max(0, Math.min(parsed, max));
+              setValue(bounded);
+              setInputValue(bounded.toLocaleString("de-CH"));
+            } else {
+              setInputValue(value.toLocaleString("de-CH"));
+            }
+          }}
+          onChange={(e) => {
+            const newValue = e.target.value;
+            setInputValue(newValue);
+            
+            // Update value in real-time as user types
+            const raw = newValue.replace(/[^0-9]/g, "");
+            const parsed = Number(raw);
+            if (!isNaN(parsed) && parsed >= 0) {
+              const bounded = Math.max(0, Math.min(parsed, max));
+              setValue(bounded);
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.currentTarget.blur();
+            }
+          }}
+          className="bg-transparent text-[18px] font-medium w-[120px] outline-none"
+        />
+        <span className="text-[18px] font-semibold">CHF</span>
+      </div>
+
+      <input
+        type="range"
+        min={sliderMin}
+        max={max}
+        value={value}
+        onMouseDown={() => {
+          if (isFocused) {
+            setIsFocused(false);
+          }
+        }}
+        onChange={(e) => {
+          let newVal = Number(e.target.value);
+          // Only apply 5000 step for Kaufpreis / Immobilienwert
+          if (label && label.toLowerCase().includes("kaufpreis")) {
+            newVal = Math.round(newVal / 5000) * 5000;
+          }
+          // Don't enforce minRequired here, just set the value
+          setValue(newVal);
+        }}
+        className="w-full h-[4px] rounded-full appearance-none cursor-pointer transition-[background] duration-300 ease-out mt-[6px]"
+        style={{
+          background: `linear-gradient(to right, #132219 ${Math.max(
+            percentage,
+            3
+          )}%, #D9D9D9 ${Math.max(percentage, 3)}%)`,
+          transition: "all 0.3s ease-out",
+        }}
+      />
+
+      {minRequired !== undefined ? (
+        <div className="flex justify-end text-[13px] text-[#4b4b4b] italic pr-2 mt-[-4px] h-[18px]">
+          Minimum: {Math.round(minRequired).toLocaleString("de-CH")} CHF
+        </div>
+      ) : (
+        <div className="h-[18px]" />
+      )}
+    </div>
+  );
+}
+
+function InfoBox({ title, value, red = false }: any) {
+  const bgColor = red
+    ? "bg-[linear-gradient(270deg,#FCA5A5_0%,#FECACA_100%)]"
+    : "bg-[linear-gradient(270deg,#CAF476_0%,#E3F4BF_100%)]";
+
+  return (
+    <div
+      className={`flex flex-col justify-between w-full h-[185px] 
+      border border-[#132219] rounded-[10px] 
+      px-[16px] py-[12px] ${bgColor}`}
+    >
+      <div className="flex justify-between items-start">
+        <p className="text-[16px] font-medium leading-tight">{title}</p>
+
+        <div className={`w-[20px] h-[20px] rounded-full border border-[#132219] flex items-center justify-center ${red ? 'bg-[#FF9A9A]' : 'bg-[#CAF47E]'}`}>
+          {red ? (
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M9 3L3 9M3 3L9 9" stroke="#132219" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          ) : (
+            <CheckIcon />
+          )}
+        </div>
+      </div>
+
+      <h2 className="text-[40px] font-semibold tracking-tight leading-none">
+        {value}
+      </h2>
+    </div>
+  );
+}
+
+function ProgressBox({
+  title,
+  value,
+  current,
+  total,
+  red = false,
+  thresholdLabel,
+}: any) {
+  const bgColor = red
+    ? "bg-[linear-gradient(270deg,#FCA5A5_0%,#FECACA_100%)]"
+    : "bg-[linear-gradient(270deg,#CAF476_0%,#E3F4BF_100%)]";
+  
+  const iconBgColor = red ? "bg-[#FF9A9A]" : "bg-[#CAF47E]";
+
+  return (
+    <div
+      className={`
+      flex-1 h-[185px]
+      flex flex-col justify-between 
+      rounded-[10px] border border-[#132219] 
+      px-[16px] py-[15px]
+      ${bgColor}
+      `}
+    >
+      <div className="flex justify-between items-start">
+        <div className="flex flex-col">
+          <h3 className="text-[20px]">{title}</h3>
+          {thresholdLabel && (
+            <span className="hidden text-[13px] text-[#4b4b4b]">{thresholdLabel}</span>
+          )}
+        </div>
+        <div className={`w-[20px] h-[20px] rounded-full border border-[#132219] ${iconBgColor} flex items-center justify-center`}>
+          {red ? (
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M9 3L3 9M3 3L9 9" stroke="#132219" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          ) : (
+            <CheckIcon />
+          )}
+        </div>
+      </div>
+
+      <h2 className="text-[40px] font-semibold leading-none">{value}</h2>
+      <p className="hidden text-[13px] text-[#4b4b4b]">
+        {current} / {total}
+      </p>
+    </div>
+  );
+}
+
+interface SmallBoxProps {
+  title: string;
+  value: string;
+  highlight?: boolean;
+}
+
+function SmallBox({ title, value, highlight = false }: SmallBoxProps) {
+  const [currency, amount] = value.split(" ");
+
+  return (
+    <div
+      className={`
+        relative flex flex-col justify-between
+        w-full h-[127px]
+        p-[8px_12px]
+        rounded-[10px] border border-[#132219]
+        bg-white overflow-hidden
+      `}
+    >
+      {highlight && (
+        <div className="absolute bottom-0 left-0 w-full h-[4px] bg-[linear-gradient(270deg,#CAF476_0%,#E3F4BF_100%)]" />
+      )}
+
+      <p className="text-[14px] font-medium text-[#132219] leading-none">
+        {title}
+      </p>
+
+      <div className="flex items-end gap-[3px] mt-[4px]">
+        <span className="text-[20px] font-semibold">{currency}</span>
+        <span className="text-[20px] font-semibold">{amount}</span>
+      </div>
+    </div>
+  );
+}
+
+function CheckIcon({ red = false }: any) {
+  const strokeColor = red ? "#7F1D1D" : "#132219";
+
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="8"
+      height="6"
+      viewBox="0 0 10 8"
+      fill="none"
+    >
+      <path
+        d="M0.5 3.78129L3.31254 6.59383L9.50012 0.40625"
+        stroke={strokeColor}
+        strokeWidth="1"
+      />
+    </svg>
+  );
+}
