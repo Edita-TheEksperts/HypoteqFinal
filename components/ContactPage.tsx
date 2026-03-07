@@ -5,7 +5,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { useEffect, useState } from "react";
 
 export default function ContactPage() {
-  const pathname = usePathname();
+   const pathname = usePathname() || "/de";
   const pathLocale = (pathname.split("/")[1] || "de") as "de" | "en" | "fr" | "it";
   const { t } = useTranslation(pathLocale);
 

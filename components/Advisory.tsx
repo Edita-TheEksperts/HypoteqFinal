@@ -12,7 +12,7 @@ interface Card {
 }
 
 export default function Advisory() {
-  const pathname = usePathname();
+  const pathname = usePathname() || "/de";
   const pathLocale = (pathname.split("/")[1] || "de") as "de" | "en" | "fr" | "it";
   const { t } = useTranslation(pathLocale);
   const cards: Card[] = [

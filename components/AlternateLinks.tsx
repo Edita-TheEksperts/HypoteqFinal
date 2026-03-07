@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { SITE_CONFIG } from "@/lib/seo";
 
 export default function AlternateLinks() {
-  const pathname = usePathname();
+  const pathname = usePathname() || "/de";
   const locales = ["de", "en", "fr", "it"] as const;
   
   // Remove locale from pathname

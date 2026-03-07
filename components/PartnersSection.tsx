@@ -13,7 +13,7 @@ const logos = [
 ];
 
 const PartnersSection: React.FC = () => {
-  const pathname = usePathname();
+   const pathname = usePathname() || "/de";
   const pathLocale = (pathname.split("/")[1] || "de") as "de" | "en" | "fr" | "it";
   const { t } = useTranslation(pathLocale);
   

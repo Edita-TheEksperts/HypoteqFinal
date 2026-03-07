@@ -8,7 +8,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { useTranslation } from "@/hooks/useTranslation";
 
 export default function Header() {
-  const pathname = usePathname();
+   const pathname = usePathname() || "/de";
   const router = useRouter();
   const [isScrolled, setIsScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);

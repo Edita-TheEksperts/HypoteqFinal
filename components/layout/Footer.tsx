@@ -6,7 +6,8 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { useState } from "react";
 
 export default function Footer() {
-  const pathname = usePathname();
+   const pathname = usePathname() || "/de";
+ 
   const pathLocale = pathname.split("/")[1] || "de";
   const { t } = useTranslation(pathLocale as "de" | "en" | "fr" | "it");
   const [email, setEmail] = useState("");

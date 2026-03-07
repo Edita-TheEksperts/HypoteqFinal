@@ -7,7 +7,7 @@ import Image from "next/image";
 
 export default function NeueHypotheken() {
   const [active, setActive] = useState("");
-  const pathname = usePathname();
+   const pathname = usePathname() || "/de";
   const pathLocale = (pathname?.split("/")[1] || "de") as "de" | "en" | "fr" | "it";
   const { t } = useTranslation(pathLocale);
 

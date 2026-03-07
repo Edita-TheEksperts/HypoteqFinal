@@ -19,7 +19,7 @@ export default function BestChoices() {
     const saron = interestOptions.find(opt => opt.position === 0);
     const fiveY = interestOptions.find(opt => opt.position === 5);
     const tenY = interestOptions.find(opt => opt.position === 10);
-  const pathname = usePathname();
+   const pathname = usePathname() || "/de";
   const pathLocale = (pathname?.split("/")[1] || "de") as "de" | "en" | "fr" | "it";
   const { t } = useTranslation(pathLocale);
   return (

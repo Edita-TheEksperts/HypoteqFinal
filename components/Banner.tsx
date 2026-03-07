@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useTranslation } from "@/hooks/useTranslation";
 
 const Banner: React.FC = () => {
-  const pathname = usePathname();
+  const pathname = usePathname() || "/de";
   const pathLocale = pathname.split("/")[1] || "de";
   const { t } = useTranslation(pathLocale as "de" | "en" | "fr" | "it");
 

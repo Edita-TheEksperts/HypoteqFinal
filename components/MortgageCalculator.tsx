@@ -23,7 +23,7 @@ function getMinIncome(
 }
 
 export default function Calculator() {
-  const pathname = usePathname();
+   const pathname = usePathname() || "/de";
   // Defensive: pathname can be null
   const safePathname = pathname || "/de";
   const pathLocale = (safePathname.split("/")[1] || "de") as "de" | "en" | "fr" | "it";

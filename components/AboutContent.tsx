@@ -6,7 +6,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 
 export default function AboutSection() {
 const [active, setActive] = useState("");
-const pathname = usePathname();
+ const pathname = usePathname() || "/de";
 const pathLocale = (pathname?.split("/")[1] || "de") as "de" | "en" | "fr" | "it";
 const { t } = useTranslation(pathLocale);
 

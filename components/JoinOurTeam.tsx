@@ -16,7 +16,7 @@ const jobs = [
 const JoinOurTeam: React.FC = () => {
   const [hovered, setHovered] = React.useState<number | null>(null);
   const [isMobile, setIsMobile] = React.useState(false);
-  const pathname = usePathname();
+   const pathname = usePathname() || "/de";
   const pathLocale = (pathname?.split("/")[1] || "de") as "de" | "en" | "fr" | "it";
   const { t } = useTranslation(pathLocale);
 

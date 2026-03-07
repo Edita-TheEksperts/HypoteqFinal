@@ -13,7 +13,7 @@ interface TestimonialItem {
 const Testimonials: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const visibleCount = 3; // desktop stays same
-  const pathname = usePathname();
+   const pathname = usePathname() || "/de";
   const pathLocale = (pathname.split("/")[1] || "de") as "de" | "en" | "fr" | "it";
   const { t } = useTranslation(pathLocale);
 
