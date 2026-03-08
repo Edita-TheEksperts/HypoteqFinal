@@ -53,16 +53,8 @@ export default function HypoteqUpdates() {
   return (
     <div className="flex flex-col items-center min-h-screen bg-[#132219] font-sfpro px-2 py-8">
       <div className="w-full max-w-2xl bg-white rounded-2xl shadow-card p-6 sm:p-8 flex flex-col gap-6">
-        <button
-          type="button"
-          className="w-full bg-[#CAF476] hover:bg-[#d6ff8a] text-[#132219] font-semibold p-3 rounded-full shadow transition text-lg mt-2"
-          onClick={() => router.push('/hypoteq-updates/leads')}
-        >
-          Partner-Leads anzeigen
-        </button>
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Interest Rates Admin</h1>
-          
           <button onClick={handleLogout} className="bg-gray-700 text-white px-4 py-2 rounded">Logout</button>
         </div>
         <table className="w-full border">

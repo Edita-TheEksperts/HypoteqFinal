@@ -101,6 +101,15 @@ export default function HypoteqUpdates() {
           <h1 className="text-3xl sm:text-4xl font-bold text-[#CAF476] tracking-tight">Interest Rates Admin</h1>
           <button onClick={handleLogout} className="bg-[#CAF476] hover:bg-[#d6ff8a] text-[#132219] font-semibold px-5 py-2 rounded-full shadow transition">Logout</button>
         </div>
+        <div className="w-full flex items-center justify-between mb-2 gap-2">
+          <button
+          type="button"
+          className="w-full bg-[#CAF476] hover:bg-[#d6ff8a] text-[#132219] font-semibold p-3 rounded-full shadow transition text-lg mt-2"
+          onClick={() => router.push('/hypoteq-updates/leads')}
+        >
+          Partner-Leads anzeigen
+        </button>
+        </div>
       </div>
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-card p-4 sm:p-8 flex flex-col items-center">
         <table className="w-full text-left text-sm sm:text-base">
