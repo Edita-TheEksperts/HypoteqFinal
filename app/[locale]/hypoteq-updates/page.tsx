@@ -51,31 +51,41 @@ export default function HypoteqUpdates() {
   if (error) return <div>{error}</div>;
 
   return (
-    <div className="max-w-xl mx-auto mt-10">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Interest Rates Admin</h1>
-        <button onClick={handleLogout} className="bg-gray-700 text-white px-4 py-2 rounded">Logout</button>
-      </div>
-      <table className="w-full border">
-        <thead>
-          <tr>
-            <th className="border p-2">Label</th>
-            <th className="border p-2">Rate</th>
-            <th className="border p-2">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {interest.map((i: any) => (
-            <tr key={i.id}>
-              <td className="border p-2">{i.label}</td>
-              <td className="border p-2">{i.rate}</td>
-              <td className="border p-2">
-                <button onClick={() => handleUpdate(i.id, i.rate)} className="bg-green-600 text-white px-2 py-1 rounded">Edit</button>
-              </td>
+    <div className="flex flex-col items-center min-h-screen bg-[#132219] font-sfpro px-2 py-8">
+      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-card p-6 sm:p-8 flex flex-col gap-6">
+        <button
+          type="button"
+          className="w-full bg-[#CAF476] hover:bg-[#d6ff8a] text-[#132219] font-semibold p-3 rounded-full shadow transition text-lg mt-2"
+          onClick={() => router.push('/hypoteq-updates/leads')}
+        >
+          Partner-Leads anzeigen
+        </button>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Interest Rates Admin</h1>
+          
+          <button onClick={handleLogout} className="bg-gray-700 text-white px-4 py-2 rounded">Logout</button>
+        </div>
+        <table className="w-full border">
+          <thead>
+            <tr>
+              <th className="border p-2">Label</th>
+              <th className="border p-2">Rate</th>
+              <th className="border p-2">Action</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {interest.map((i: any) => (
+              <tr key={i.id}>
+                <td className="border p-2">{i.label}</td>
+                <td className="border p-2">{i.rate}</td>
+                <td className="border p-2">
+                  <button onClick={() => handleUpdate(i.id, i.rate)} className="bg-green-600 text-white px-2 py-1 rounded">Edit</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

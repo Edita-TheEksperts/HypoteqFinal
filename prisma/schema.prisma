@@ -176,3 +176,12 @@ model Document {
     updatedAt DateTime @updatedAt
     position  Int      @unique
   }
+
+model FunnelLead {
+  id        String   @id @default(uuid())
+  firstName String
+  lastName  String
+  email     String
+  phone     String
+  createdAt DateTime @default(now())
+}
