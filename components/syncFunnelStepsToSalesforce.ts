@@ -140,11 +140,21 @@ export async function syncFunnelStepsToSalesforce(stepData: Record<string, any>,
     flatData.abloesung_betrag = flatData.abloesedatum; // This will be mapped to Abl_sung__c
   }
 
-  // Extract partner email if customerType is "partner" (doesn't create Account, just stored in Case)
+  // Extract partner email if customerType is "partner" (used for Sales Partner Account__c lookup)
   let partnerEmail: string | null = null;
+  let partnerAccountId: string | null = null;
   if (stepData.customerType === 'partner' && stepData.client?.email) {
     partnerEmail = stepData.client.email;
     console.log(`[Salesforce Sync] Partner email detected: ${partnerEmail}`);
+    // Find or create the Account for the partner email
+    let partnerAccount = await salesforceApi.findAccountByEmail(partnerEmail);
+    if (!partnerAccount) {
+      partnerAccount = await salesforceApi.createAccount({
+        LastName: partnerEmail,
+        PersonEmail: partnerEmail
+      });
+    }
+    partnerAccountId = partnerAccount.id || partnerAccount.Id;
   }
 
   // Extract persons from kreditnehmer array (end-customers who will get Accounts)
@@ -270,10 +280,6 @@ export async function syncFunnelStepsToSalesforce(stepData: Record<string, any>,
       PersonEmail: email,
       Phone: phone,
     };
-    // Optionally, add contactLastName as a custom field if needed in Salesforce
-    if (isJuristicPerson && person.contactLastName) {
-      accountData.Contact_LastName__c = person.contactLastName;
-    }
     
     // Add address if available
     if (person.adresse) {
@@ -452,6 +458,10 @@ export async function syncFunnelStepsToSalesforce(stepData: Record<string, any>,
   const caseData: Record<string, any> = {
     AccountId: mainAccountId,
   };
+  // If partnerAccountId exists, set Sales Partner lookup field
+  if (partnerAccountId) {
+    caseData.Account__c = partnerAccountId; // Sales Partner lookup
+  }
 
   // Map all Case fields from funnelToSalesforceMap
   for (const [funnelField, mapping] of Object.entries(funnelToSalesforceMap)) {
@@ -632,9 +642,9 @@ export async function syncFunnelStepsToSalesforce(stepData: Record<string, any>,
     caseData['Case_Name__c'] = defaultName;
   }
 
-  // Clean up: Remove non-Case fields
+  // Clean up: Remove non-Case fields, but keep AccountId and Account__c (Sales Partner)
   for (const key of Object.keys(caseData)) {
-    if (!SALESFORCE_CASE_FIELDS[key] && key !== "AccountId") {
+    if (!SALESFORCE_CASE_FIELDS[key] && key !== "AccountId" && key !== "Account__c") {
       console.warn(`🧹 Removing non-case field from Case: ${key}`);
       delete caseData[key];
     }

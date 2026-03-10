@@ -52,6 +52,6 @@ export const funnelToSalesforceMap = {
   erhoehung_betrag: { salesforceField: "Erh_hung__c", salesforceObject: "case" }, // Mortgage increase amount (only sent if erhoehung=Ja)
 
   caseName: { salesforceField: "Case_Name__c", salesforceObject: "case" },
-  // partnerEmail: { salesforceField: "Partner_Email__c", salesforceObject: "case" },  // Uncomment after creating field in Salesforce
+  partnerEmail: { salesforceField: "Account__c", salesforceObject: "case" },
   
 } as const;
