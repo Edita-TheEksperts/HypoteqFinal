@@ -34,10 +34,8 @@ export default function Calculator() {
   const [existingMortgage, setExistingMortgage] = useState(0); // B9: Bisherige Hypothek
   const [mortgageIncrease, setMortgageIncrease] = useState(0); // B10: Hypothekerhoehung
 
+  const [loanType, setLoanType] = useState<"refinancing" | "purchase">("refinancing");
   const [residenceType, setResidenceType] = useState<"haupt" | "zweit">("haupt");
-  const [loanType, setLoanType] = useState<"purchase" | "refinancing" | null>(
-    "purchase"
-  );
 
 
   const [interestLabels, setInterestLabels] = useState<string[]>([]);
@@ -257,311 +255,110 @@ export default function Calculator() {
   return (
     <section
       id="calculator"
-      className="flex flex-col items-center bg-white py-6 px-4 sm:py-12 sm:px-8 md:px-12 lg:px-[116px] mb-[60px] sm:mb-[120px] font-sans text-[#132219]"
+      className="flex flex-col items-center bg-white py-10 px-4 sm:py-16 sm:px-8 md:px-12 lg:px-[116px] min-h-screen font-sans text-[#222]"
     >
-      <div className="max-w-full lg:max-w-[1280px] flex flex-col lg:flex-row justify-between items-start w-full mx-auto gap-[10px] lg:gap-[80px] lg:items-stretch">
-        {/* Linke Seite – Eingaben */}
-        <div className="flex flex-col w-full px-2 sm:px-4 max-w-full lg:max-w-[536px] gap-[24px] sm:gap-[48px]">
-          <div className="flex flex-col lg:flex-row items-start justify-between w-full mb-6 sm:mb-10 mt-4 sm:mt-6 lg:mb-20 lg:mt-10">
-            <h1
-              className="
-                text-[40px] sm:text-[52px] lg:text-[72px]
-                font-[500]
-                leading-[110%] lg:leading-[100%]
-                tracking-[-0.72px]
-                text-[#132219]
-                max-w-full lg:max-w-[536px]
-                text-left
-              "
-              style={{ fontFamily: "'SF Pro Display', sans-serif" }}
+      <div className="max-w-full lg:max-w-[900px] w-full mx-auto">
+        <div className="flex flex-col mb-8">
+          {/* Loan type dropdown */}
+          <div className="mb-4 w-full max-w-xs">
+            <label className="block text-[20px] font-semibold mb-2">{loanType === "refinancing" ? "Refinanzierung" : "Immobilienkauf"}</label>
+            <select
+              className="w-full border border-[#D1D5DB] rounded-[6px] px-4 py-2 text-[16px] bg-white focus:outline-none focus:ring-2 focus:ring-[#222]"
+              value={loanType}
+              onChange={e => setLoanType(e.target.value as "refinancing" | "purchase")}
             >
-              Hypothekenrechner
-            </h1>
+              <option value="refinancing">Refinanzierung</option>
+              <option value="purchase">Immobilienkauf</option>
+            </select>
           </div>
-
-          {/* Input-Block */}
-          <div className="flex flex-col gap-[6px] sm:gap-[10px] mt-[-6px]">
-            {/* Toggle Kauf / Refi */}
-            <div className="flex gap-[12px]">
-              <ToggleButton
-                label="Kauf"
-                active={loanType === "purchase"}
-                onClick={() => setLoanType("purchase")}
-              />
-              <ToggleButton
-                label="Refinanzierung"
-                active={loanType === "refinancing"}
-                onClick={() => setLoanType("refinancing")}
-              />
-            </div>
-
-            {/* Haupt- / Zweitwohnsitz */}
-            {loanType && (
-              <div className="flex w-full border border-[#132219] rounded-full p-[3px]">
-                <SubToggle
-                  label="Hauptwohnsitz"
-                  active={residenceType === "haupt"}
-                  onClick={() => setResidenceType("haupt")}
-                />
-                <SubToggle
-                  label="Zweitwohnsitz"
-                  active={residenceType === "zweit"}
-                  onClick={() => setResidenceType("zweit")}
-                />
-              </div>
-            )}
-
-            {/* Kaufpreis / Immobilienwert */}
-            <SliderInput
-              label="Kaufpreis / Immobilienwert"
-              value={propertyPrice}
-              setValue={setPropertyPrice}
-              min={0}
-              max={5000000}
-            />
-
-            {/* Refi-spezifische Inputs */}
-            {loanType === "refinancing" && (
-              <>
-                <SliderInput
-                  label="Bestehende Hypothek"
-                  value={existingMortgage}
-                  setValue={setExistingMortgage}
-                  min={0}
-                  max={propertyPrice}
-                />
-                <SliderInput
-                  label="Hypothekenerhöhung"
-                  value={mortgageIncrease}
-                  setValue={setMortgageIncrease}
-                  min={0}
-                  max={params.maxBelehnung * propertyPrice}
-                />
-              </>
-            )}
-
-            {/* Kauf-Eigenmittel */}
-            {loanType === "purchase" && (
-              <SliderInput
-                label="Eigenmittel"
-                value={ownFunds}
-                setValue={setOwnFunds}
-                min={0}
-                max={propertyPrice}
-                minRequired={minOwnFunds}
-              />
-            )}
-
-            {/* Einkommen */}
-            <SliderInput
-              label="Brutto-Haushaltseinkommen p.a."
-              value={income}
-              setValue={setIncome}
-              min={0}
-              max={10000000}
-              minRequired={minIncomeRequired}
-            />
-
-            {/* Zins-Dropdown */}
-            <div className="flex flex-col gap-[6px] mt-[10px] w-full">
-              <label className="text-[16px] font-medium text-[#132219]">
-                Zinssatz auswählen
-              </label>
-
-              <div className="relative w-full mt-[4px]">
-                <button
-                  onClick={() => setOpenDropdown((prev) => !prev)}
-                  className="
-                    w-full h-[40px] 
-                    bg-white 
-                    border border-[#132219] 
-                    rounded-[50px]
-                    flex items-center justify-between
-                    px-[16px]
-                    text-[16px] font-medium
-                  "
-                >
-                  <span className="text-[#132219]">{interestLabels[interestOptionIndex]}</span>
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 20 20"
-                    fill="none"
-                    className={`transition-transform duration-300 ${
-                      openDropdown ? "rotate-180" : "rotate-0"
-                    }`}
+          {/* Residence type toggles */}
+          <div className="flex gap-2 mb-8">
+            <button
+              className={`px-5 py-2 rounded-[6px] border text-[15px] font-medium transition-all duration-200 ${residenceType === "haupt" ? "bg-[#222] text-white border-[#222]" : "bg-white text-[#222] border-[#D1D5DB] hover:bg-[#F3F4F6]"}`}
+              onClick={() => setResidenceType("haupt")}
+            >Hauptwohnsitz</button>
+            <button
+              className={`px-5 py-2 rounded-[6px] border text-[15px] font-medium transition-all duration-200 ${residenceType === "zweit" ? "bg-[#222] text-white border-[#222]" : "bg-white text-[#222] border-[#D1D5DB] hover:bg-[#F3F4F6]"}`}
+              onClick={() => setResidenceType("zweit")}
+            >Zweitwohnsitz</button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <SliderInput label="Kaufpreis / Immobilienwert" value={propertyPrice} setValue={setPropertyPrice} min={0} max={5000000} />
+            <SliderInput label="Bisherige Hypothek" value={existingMortgage} setValue={setExistingMortgage} min={0} max={propertyPrice} />
+            <SliderInput label="Hypothekenerhöhung" value={mortgageIncrease} setValue={setMortgageIncrease} min={0} max={params.maxBelehnung * propertyPrice} />
+            <SliderInput label="Brutto-Haushaltseinkommen" value={income} setValue={setIncome} min={0} max={10000000} />
+            <div className="col-span-1 md:col-span-2">
+              <div className="flex flex-col gap-2">
+                <label className="text-[15px] font-semibold mb-1">Zins-Laufzeit wählen</label>
+                <div className="relative w-full">
+                  <button
+                    onClick={() => setOpenDropdown((prev) => !prev)}
+                    className="w-full h-[44px] bg-white border border-[#D1D5DB] rounded-[6px] flex items-center justify-between px-[16px] text-[16px] font-normal focus:outline-none focus:ring-2 focus:ring-[#222]"
                   >
-                    <path
-                      d="M5 7L10 12L15 7"
-                      stroke="#132219"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-
-                {openDropdown && (
-                  <div
-                    className="
-                      absolute left-0 top-[45px] w-full 
-                      bg-white border border-[#132219]
-                      rounded-[10px]
-                      shadow-lg z-[9999]
-                      py-2
-                    "
-                    style={{zIndex: 9999}}
-                  >
-                    {interestLabels.map((label, idx) => (
-                      <button
-                        key={label}
-                        className="
-                          w-full text-left px-4 py-2 
-                          text-[16px] text-[#132219] 
-                          hover:bg-[#F4F4F4]
-                        "
-                        onClick={() => {
-                          setInterestOptionIndex(idx);
-                          setOpenDropdown(false);
-                        }}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                    <span className="text-[#222]">{interestLabels[interestOptionIndex]}</span>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" className={`transition-transform duration-300 ${openDropdown ? "rotate-180" : "rotate-0"}`}> <path d="M5 7L10 12L15 7" stroke="#222" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /> </svg>
+                  </button>
+                  {openDropdown && (
+                    <div className="absolute left-0 top-[45px] w-full bg-white border border-[#D1D5DB] rounded-[8px] shadow-lg z-[9999] py-2" style={{zIndex: 9999}}>
+                      {interestLabels.map((label, idx) => (
+                        <button key={label} className="w-full text-left px-4 py-2 text-[16px] text-[#222] hover:bg-[#F3F4F6]" onClick={() => { setInterestOptionIndex(idx); setOpenDropdown(false); }}>{label}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Rechte Seite – Ausgaben */}
-        <div className="px-2 sm:px-4 flex flex-col items-start w-full max-w-full lg:max-w-[628px] lg:mt-[253px] mt-[20px] sm:mt-[40px]">
-          {/* InfoBox */}
-          <div className="flex flex-col gap-[36px] w-full">
-            <InfoBox
-              title={infoTitle}
-              value={formatCHF(totalMortgageForCalc)}
-              red={!isEligible}
-              loanType={loanType}
-            />
+        {/* Results Card */}
+        <div className="bg-white border border-[#E5E7EB] rounded-[10px] shadow p-8 mt-4 mb-10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
+            <div>
+              <div className="text-[#222] text-[15px] font-medium mb-1">Finanzierung möglich. Neue Hypothek bis:</div>
+              <div className="text-[26px] font-bold">{formatCHF(totalMortgageForCalc)}</div>
+            </div>
+            <div>
+              <div className="text-[#222] text-[15px] font-medium mb-1">Belehnung</div>
+              <div className="text-[26px] font-bold">{formatPercent(belehnungRefi)}</div>
+            </div>
+            <div>
+              <div className="text-[#222] text-[15px] font-medium mb-1">Tragbarkeit</div>
+              <div className="text-[26px] font-bold">{formatPercent(tragbarkeitPercent)}</div>
+            </div>
           </div>
-
-          {/* Progress-Boxen */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-[10px] w-full mt-[10px] sm:mt-[20px] mb-[6px] sm:mb-[10px]">
-            {/* Kauf */}
-            {loanType === "purchase" && (
-              <>
-                <ProgressBox
-                  title="Eigenmittel"
-                  value={formatPercent(
-                    propertyPrice > 0 ? ownFunds / propertyPrice : 0
-                  )}
-                  current={formatCHF(ownFunds)}
-                  total={formatCHF(propertyPrice)}
-                  loanType={loanType}
-                  red={!isEquityOK}
-                  thresholdLabel={
-                    residenceType === "zweit" ? "(min. 35%)" : "(min. 20%)"
-                  }
-                />
-
-                <ProgressBox
-                  title="Tragbarkeit"
-                  value={formatPercent(tragbarkeitPercent)}
-                  current={formatCHF(tragbarkeitCHF)}
-                  total={formatCHF(income)}
-                  loanType={loanType}
-                  red={!isTragbarkeitOK}
-                />
-              </>
-            )}
-
-            {/* Refinanzierung */}
-            {loanType === "refinancing" && (
-              <>
-                <ProgressBox
-                  title="Belehnung"
-                  value={formatPercent(belehnungRefi)}
-                  current={formatCHF(totalMortgageRefi)}
-                  total={formatCHF(propertyPrice)}
-                  loanType={loanType}
-                  red={!isBelehnungOK}
-                />
-
-                <ProgressBox
-                  title="Tragbarkeit"
-                  value={formatPercent(tragbarkeitPercent)}
-                  current={formatCHF(tragbarkeitCHF)}
-                  total={formatCHF(income)}
-                  loanType={loanType}
-                  red={!isTragbarkeitOK}
-                />
-              </>
-            )}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
+            <div>
+              <div className="text-[#222] text-[15px] font-medium mb-1">Bisherige monatliche Kosten</div>
+              <div className="text-[22px] font-semibold">{formatCHF(monthlyOld)}</div>
+            </div>
+            <div>
+              <div className="text-[#222] text-[15px] font-medium mb-1">Monatliche Gesamtkosten</div>
+              <div className="text-[22px] font-semibold">{formatCHF(monthlyNew)}</div>
+            </div>
+            <div>
+              <div className="text-[#222] text-[15px] font-medium mb-1">Zinsen</div>
+              <div className="text-[22px] font-semibold">{formatCHF(monthlyInterest)}</div>
+            </div>
           </div>
-
-          {/* Kosten-Boxen */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-[10px] w-full mt-[8px] sm:mt-[16px]">
-            {loanType === "refinancing" ? (
-              <>
-                <SmallBox
-                  title="Bisherige monatliche Kosten"
-                  value={formatCHF(monthlyOld)}
-                />
-                <SmallBox
-                  title="Unterhaltskosten"
-                  value={formatCHF(monthlyMaintenance)}
-                />
-                <SmallBox
-                  title="Zinskosten"
-                  value={formatCHF(monthlyInterest)}
-                />
-                <SmallBox
-                  title="Gesamtkosten pro Monat"
-                  value={formatCHF(monthlyCost)}
-                  highlight
-                />
-              </>
-            ) : (
-              <>
-                <SmallBox
-                  title="Amortisation"
-                  value={formatCHF(monthlyAmortization)}
-                />
-                <SmallBox
-                  title="Nebenkosten"
-                  value={formatCHF(monthlyMaintenance)}
-                />
-                <SmallBox
-                  title="Zinskosten"
-                  value={formatCHF(monthlyInterest)}
-                />
-                <SmallBox
-                  title="Monatliche Kosten"
-                  value={formatCHF(monthlyCost)}
-                  highlight
-                />
-              </>
-            )}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
+            <div>
+              <div className="text-[#222] text-[15px] font-medium mb-1">Unterhalt / Nebenkosten</div>
+              <div className="text-[22px] font-semibold">{formatCHF(monthlyMaintenance)}</div>
+            </div>
+          </div>
+          {/* Risk Assessment Bar */}
+          <div className="mt-4">
+            <div className="flex items-center gap-3">
+              <span className="bg-[#F3F4F6] text-[#222] text-xs font-semibold px-3 py-1 rounded-full border border-[#D1D5DB]">Mortgage assessment</span>
+              <span className="text-[#222] text-[15px]">Your eligibility, affordability, and available equity are all within a healthy range, indicating a low financial risk.</span>
+            </div>
           </div>
         </div>
       </div>
-
-          {/* CTA */}
-    <Link
-      href="/de/funnel"
-      className="max-w-[1280px] w-full col-span-2 block px-4"
-    >
-        <button className="w-full h-[41px] mt-[28px] rounded-full bg-[#132219] text-white text-[18px] font-sfpro font-medium text-center leading-normal hover:opacity-90 transition">
-          Weiter zur Kontaktaufnahme
-        </button>
-      </Link>
     </section>
   );
 }
-
-/* -------- UI-Sub-Komponenten -------- */
 
 function ToggleButton({ label, active, onClick }: any) {
   return (

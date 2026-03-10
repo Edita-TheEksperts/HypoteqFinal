@@ -14,8 +14,8 @@ export default function FunnelIframePage() {
           <FunnelCalculator />
           <button
             onClick={() => setStep(2)}
-            className="fixed md:absolute bottom-8 right-8 md:bottom-8 md:right-8 z-50 bg-[#CAF476] text-[#132219] px-8 py-4 rounded-full shadow-lg text-lg font-semibold hover:opacity-90 transition"
-            style={{fontFamily: "'SF Pro Display', Inter, sans-serif"}}
+            className="fixed md:absolute bottom-8 right-8 md:bottom-8 md:right-8 z-50 bg-[#1A2A36] text-white px-8 py-3 rounded-[6px] shadow text-[16px] font-medium hover:bg-[#223344] transition-colors duration-150"
+            style={{ fontFamily: "'SF Pro Display', Inter, sans-serif", minWidth: 160 }}
           >
             Kontakt aufnehmen
           </button>

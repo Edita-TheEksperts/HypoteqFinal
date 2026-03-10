@@ -39,49 +39,67 @@ export default function FunnelContactForm() {
     <div className="flex min-h-[60vh] items-center justify-center w-full">
       <form
         onSubmit={handleSubmit}
-        className="flex flex-col gap-5 w-full max-w-md bg-white p-8 rounded-2xl border shadow-card items-center"
+        className="w-full max-w-5xl bg-white p-12 
+         mx-auto"
         style={{ fontFamily: "'SF Pro Display', Inter, sans-serif" }}
       >
-        <h2 className="text-3xl font-semibold mb-2 text-[#132219] text-center">{t("footer.contactUs", "Kontaktiere uns")}</h2>
-        <input
-          name="firstName"
-          placeholder={t("contactform.firstName", "Vorname")}
-          value={form.firstName}
-          onChange={handleChange}
-          required
-          className="input-base text-[#132219] focus:ring-2 focus:ring-[#CAF476] focus:border-[#CAF476] bg-white"
-        />
-        <input
-          name="lastName"
-          placeholder={t("contactform.lastName", "Nachname")}
-          value={form.lastName}
-          onChange={handleChange}
-          required
-          className="input-base text-[#132219] focus:ring-2 focus:ring-[#CAF476] focus:border-[#CAF476] bg-white"
-        />
-        <input
-          name="email"
-          type="email"
-          placeholder={t("contactform.email", "E-Mail")}
-          value={form.email}
-          onChange={handleChange}
-          required
-          className="input-base text-[#132219] focus:ring-2 focus:ring-[#CAF476] focus:border-[#CAF476] bg-white"
-        />
-        <input
-          name="phone"
-          placeholder={t("contactform.phone", "Telefonnummer")}
-          value={form.phone}
-          onChange={handleChange}
-          required
-          className="input-base text-[#132219] focus:ring-2 focus:ring-[#CAF476] focus:border-[#CAF476] bg-white"
-        />
-        <button
-          type="submit"
-          className="w-full rounded-xl bg-[#CAF476] text-[#132219] px-4 py-3 text-lg font-semibold shadow hover:opacity-90 transition"
-        >
-          {t("contactform.submit", "Absenden")}
-        </button>
+        <h2 className="text-2xl sm:text-3xl font-semibold mb-2 text-[#222]">Basic Information</h2>
+        <hr className="my-6 border-[#E5E7EB]" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div>
+            <label className="block text-[15px] font-semibold mb-2">First Name</label>
+            <input
+              name="firstName"
+              placeholder="Type your first name"
+              value={form.firstName}
+              onChange={handleChange}
+              required
+              className="w-full border border-[#E5E7EB] rounded-[6px] px-4 py-3 text-[15px] bg-white focus:outline-none focus:ring-2 focus:ring-[#1A2A36]"
+            />
+          </div>
+          <div>
+            <label className="block text-[15px] font-semibold mb-2">Last Name</label>
+            <input
+              name="lastName"
+              placeholder="Type last name"
+              value={form.lastName}
+              onChange={handleChange}
+              required
+              className="w-full border border-[#E5E7EB] rounded-[6px] px-4 py-3 text-[15px] bg-white focus:outline-none focus:ring-2 focus:ring-[#1A2A36]"
+            />
+          </div>
+          <div>
+            <label className="block text-[15px] font-semibold mb-2">Email Address</label>
+            <input
+              name="email"
+              type="email"
+              placeholder="Type your email address"
+              value={form.email}
+              onChange={handleChange}
+              required
+              className="w-full border border-[#E5E7EB] rounded-[6px] px-4 py-3 text-[15px] bg-white focus:outline-none focus:ring-2 focus:ring-[#1A2A36]"
+            />
+          </div>
+          <div>
+            <label className="block text-[15px] font-semibold mb-2">Phone Number</label>
+            <input
+              name="phone"
+              placeholder="Please Type your phone number"
+              value={form.phone}
+              onChange={handleChange}
+              required
+              className="w-full border border-[#E5E7EB] rounded-[6px] px-4 py-3 text-[15px] bg-white focus:outline-none focus:ring-2 focus:ring-[#1A2A36]"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            className="px-7 py-2 rounded-[6px] bg-[#222] text-white text-[15px] font-medium shadow-sm hover:bg-[#444] transition-colors duration-150 min-w-[140px]"
+          >
+            Send Request
+          </button>
+        </div>
         {status && (
           <div className="mt-2 text-center text-[#3B7A2A] font-medium">{status}</div>
         )}
