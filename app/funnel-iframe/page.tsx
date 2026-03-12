@@ -8,22 +8,47 @@ export default function FunnelIframePage() {
   const [calcData, setCalcData] = useState<any>(null);
 
   return (
-    <div style={{ maxWidth: 1400, margin: "0 auto", background: "#fff", padding: 24, borderRadius: 12 }}>
-      {step === 1 && (
-        <div className="relative min-h-[60vh] flex flex-col justify-center items-center">
-          <FunnelCalculator />
-          <button
-            onClick={() => setStep(2)}
-            className="fixed md:absolute bottom-8 right-8 md:bottom-8 md:right-8 z-50 bg-[#1A2A36] text-white px-8 py-3 rounded-[6px] shadow text-[16px] font-medium hover:bg-[#223344] transition-colors duration-150"
-            style={{ fontFamily: "'SF Pro Display', Inter, sans-serif", minWidth: 160 }}
-          >
-            Kontakt aufnehmen
-          </button>
-        </div>
-      )}
-      {step === 2 && (
-        <FunnelContactForm />
-      )}
+    <div className="w-full min-h-screen bg-white">
+      {/* Mobile-first responsive wrapper */}
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 py-6 sm:py-8 md:py-12">
+        {step === 1 && (
+          <div className="relative min-h-[60vh] md:min-h-[80vh] flex flex-col justify-center">
+            {/* Calculator Content */}
+            <div className="w-full">
+              <FunnelCalculator />
+            </div>
+
+            {/* Contact Button - Responsive positioning */}
+            <div className="mt-8 sm:mt-10 md:mt-12 flex justify-center md:justify-end">
+              <button
+                onClick={() => setStep(2)}
+                className="w-full sm:w-auto px-6 sm:px-8 py-3 rounded-[6px] 
+                           bg-[#1A2A36] text-white font-medium text-base sm:text-base
+                           hover:bg-[#223344] active:bg-[#0F1823]
+                           transition-all duration-150 ease-in-out
+                           shadow-sm hover:shadow-md
+                           focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1A2A36]"
+                style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}
+              >
+                Kontakt aufnehmen
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="w-full">
+            {/* Back button for mobile */}
+            <button
+              onClick={() => setStep(1)}
+              className="mb-6 text-sm font-medium text-[#1A2A36] hover:text-[#223344] transition-colors md:hidden"
+            >
+              ← Zurück zum Rechner
+            </button>
+            <FunnelContactForm />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
