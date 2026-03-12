@@ -175,6 +175,13 @@ export default function Calculator() {
               <option value="refinancing">Refinanzierung</option>
               <option value="purchase">Immobilienkauf</option>
             </select>
+            <div className="w-full sm:w-auto h-12 sm:h-16 rounded-[6px] flex items-center justify-center flex-shrink-0">
+  <img
+    src="/images/HYPOTEQ_layout_logo.png"
+    alt="Company Logo"
+    className="h-full w-auto max-w-[150px] object-contain p-2"
+  />
+</div>
           </div>
 
           {/* Residence Type Toggle */}
