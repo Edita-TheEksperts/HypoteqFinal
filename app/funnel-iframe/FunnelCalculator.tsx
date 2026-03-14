@@ -2,32 +2,17 @@
 
 import { useState, useMemo, useEffect } from "react";
 
-// Helper: Mindest-Einkommen nur für Zweitwohnsitz-Kauf
-function getMinIncome(
-  residenceType: "haupt" | "zweit",
-  propertyPrice: number,
-  ownFunds: number
-) {
-  if (residenceType === "haupt") return 0;
-  if (propertyPrice > 0 && ownFunds > 0) {
-    const hypothek = propertyPrice - ownFunds;
-    const kostenJahr = hypothek * (0.05 + 0.008);
-    return kostenJahr / 0.35;
-  }
-  return 0;
-}
-
 export default function Calculator() {
-  // Basis-States
-  const [propertyPrice, setPropertyPrice] = useState(400000);
-  const [ownFunds, setOwnFunds] = useState(80000);
-  const [income, setIncome] = useState(150000);
+  // Basis-States - All starting from 0
+  const [propertyPrice, setPropertyPrice] = useState(0);
+  const [ownFunds, setOwnFunds] = useState(0);
+  const [income, setIncome] = useState(0);
 
   // Refinanzierung
-  const [existingMortgage, setExistingMortgage] = useState(250000);
-  const [mortgageIncrease, setMortgageIncrease] = useState(50000);
+  const [existingMortgage, setExistingMortgage] = useState(0);
+  const [mortgageIncrease, setMortgageIncrease] = useState(0);
 
-  const [loanType, setLoanType] = useState<"refinancing" | "purchase">("refinancing");
+  const [loanType, setLoanType] = useState<"refinancing" | "purchase">("purchase");
   const [residenceType, setResidenceType] = useState<"haupt" | "zweit">("haupt");
 
   const [interestLabels, setInterestLabels] = useState<string[]>([]);
@@ -41,8 +26,6 @@ export default function Calculator() {
     amortizationYears: 15,
     maintenanceRate: 0.008,
   };
-
-  const dynamicMaxMortgage = params.maxBelehnung * propertyPrice;
 
   useEffect(() => {
     fetch("/api/interest")
@@ -72,7 +55,6 @@ export default function Calculator() {
         }
       })
       .catch(() => {
-        // Fallback rates
         const fallbackLabels = ["SARON 1.20%", "1Y 1.35%", "5Y 1.65%", "10Y 1.85%"];
         const fallbackRates = [0.012, 0.0135, 0.0165, 0.0185];
         setInterestLabels(fallbackLabels);
@@ -87,14 +69,19 @@ export default function Calculator() {
     return 0.01;
   }, [interestRates, interestOptionIndex]);
 
+  // ==================== EXACT MATCHING CALCULATIONS ====================
+
+  // 1. MORTGAGE CALCULATIONS
   const totalMortgagePurchase = Math.max(0, propertyPrice - ownFunds);
   const totalMortgageRefi = Math.max(0, existingMortgage + mortgageIncrease);
   const totalMortgageForCalc = loanType === "purchase" ? totalMortgagePurchase : totalMortgageRefi;
 
+  // 2. LTV CALCULATIONS
   const ltv = propertyPrice > 0 ? totalMortgageForCalc / propertyPrice : 0;
   const ltvLimit = residenceType === "haupt" ? 0.8 : 0.65;
   const ltvOk = ltv <= ltvLimit;
 
+  // 3. FIRST/SECOND MORTGAGE
   const firstLimitAbs = residenceType === "haupt" ? params.firstMortgageLimit * propertyPrice : 0;
   const secondMortgage = residenceType === "haupt" ? Math.max(0, totalMortgageForCalc - firstLimitAbs) : 0;
 
@@ -102,6 +89,7 @@ export default function Calculator() {
     ? (params.maxBelehnung - params.firstMortgageLimit) / params.amortizationYears
     : 0;
 
+  // 4. AFFORDABILITY CALCULATION (STRESS INTEREST 5%)
   let affordabilityCHF = 0;
   if (residenceType === "haupt") {
     affordabilityCHF = totalMortgageForCalc * (0.05 + 0.008 + ((0.8 - 0.6667) / 15));
@@ -113,20 +101,21 @@ export default function Calculator() {
   const affordabilityOk = income > 0 && affordability <= 0.35;
   const minIncomeRequired = affordabilityCHF > 0 ? Math.ceil(affordabilityCHF / 0.35) : 0;
 
+  // 5. MINIMUM OWN FUNDS (Purchase only)
   const minOwnFunds = loanType === "purchase"
     ? propertyPrice * (residenceType === "zweit" ? 0.35 : 0.2)
     : 0;
 
   const isEquityOK = loanType === "purchase" ? (propertyPrice > 0 && ownFunds >= minOwnFunds) : true;
+
+  // 6. ELIGIBILITY
   const isEligible = ltvOk && affordabilityOk && isEquityOK;
 
-  const tragbarkeitPercent = affordability;
-  const belehnungRefi = propertyPrice > 0 ? totalMortgageRefi / propertyPrice : 0;
-
-  // Monthly costs with product interest rate
+  // 7. MONTHLY COSTS (PRODUCT INTEREST)
   const maintenanceYear = propertyPrice * params.maintenanceRate;
   const monthlyMaintenance = maintenanceYear / 12;
 
+  // Old costs (for refinancing)
   const secondMortgageOld = residenceType === "haupt"
     ? Math.max(0, existingMortgage - firstLimitAbs)
     : 0;
@@ -138,6 +127,7 @@ export default function Calculator() {
   const oldMaintenanceYear = propertyPrice * params.maintenanceRate;
   const monthlyOld = (oldInterestYear + oldMaintenanceYear + oldAmortYear) / 12;
 
+  // New costs (for refinancing)
   const newTotal = totalMortgageRefi;
   const newInterestYear = newTotal * effectiveRate;
   const newMaintenanceYear = propertyPrice * params.maintenanceRate;
@@ -149,6 +139,7 @@ export default function Calculator() {
     : 0;
   const monthlyNew = (newInterestYear + newMaintenanceYear + newAmortYear) / 12;
 
+  // General monthly costs
   const interestYearEffective = totalMortgageForCalc * effectiveRate;
   const monthlyInterest = interestYearEffective / 12;
 
@@ -157,6 +148,11 @@ export default function Calculator() {
     : 0;
   const monthlyAmortization = amortizationYear / 12;
   const monthlyCost = monthlyInterest + monthlyMaintenance + monthlyAmortization;
+
+  // Helper variables
+  const tragbarkeitPercent = affordability;
+  const belehnungRefi = propertyPrice > 0 ? totalMortgageRefi / propertyPrice : 0;
+  const belehnungPurchase = propertyPrice > 0 ? totalMortgagePurchase / propertyPrice : 0;
 
   const formatCHF = (num: number) => "CHF " + Math.round(num).toLocaleString("de-CH");
   const formatPercent = (num: number) => (num * 100).toFixed(1).replace(".", ",") + "%";
@@ -172,16 +168,16 @@ export default function Calculator() {
               value={loanType}
               onChange={(e) => setLoanType(e.target.value as "refinancing" | "purchase")}
             >
-              <option value="refinancing">Refinanzierung</option>
               <option value="purchase">Immobilienkauf</option>
+              <option value="refinancing">Refinanzierung</option>
             </select>
             <div className="w-full sm:w-auto h-12 sm:h-16 rounded-[6px] flex items-center justify-center flex-shrink-0">
-  <img
-    src="/images/HYPOTEQ_layout_logo.png"
-    alt="Company Logo"
-    className="h-full w-auto max-w-[150px] object-contain p-2"
-  />
-</div>
+              <img
+                src="/images/HYPOTEQ_layout_logo.png"
+                alt="Company Logo"
+                className="h-full w-auto max-w-[150px] object-contain p-2"
+              />
+            </div>
           </div>
 
           {/* Residence Type Toggle */}
@@ -218,33 +214,46 @@ export default function Calculator() {
             min={0}
             max={5000000}
           />
-          <SliderInput
-            label="Bisherige Hypothek"
-            value={existingMortgage}
-            setValue={setExistingMortgage}
-            min={0}
-            max={propertyPrice}
-          />
-          <SliderInput
-            label="Hypothekererhöhung"
-            value={mortgageIncrease}
-            setValue={setMortgageIncrease}
-            min={0}
-            max={params.maxBelehnung * propertyPrice}
-          />
-          <SliderInput
-            label="Eigenmittel"
-            value={ownFunds}
-            setValue={setOwnFunds}
-            min={0}
-            max={propertyPrice}
-          />
+
+          {/* Purchase-specific: Own Funds */}
+          {loanType === "purchase" && (
+            <SliderInput
+              label="Eigenmittel"
+              value={ownFunds}
+              setValue={setOwnFunds}
+              min={0}
+              max={propertyPrice}
+              minRequired={minOwnFunds}
+            />
+          )}
+
+          {/* Refinancing-specific: Existing Mortgage & Increase */}
+          {loanType === "refinancing" && (
+            <>
+              <SliderInput
+                label="Bisherige Hypothek"
+                value={existingMortgage}
+                setValue={setExistingMortgage}
+                min={0}
+                max={propertyPrice}
+              />
+              <SliderInput
+                label="Hypothekekerhoehung"
+                value={mortgageIncrease}
+                setValue={setMortgageIncrease}
+                min={0}
+                max={params.maxBelehnung * propertyPrice}
+              />
+            </>
+          )}
+
           <SliderInput
             label="Brutto-Haushaltseinkommen"
             value={income}
             setValue={setIncome}
             min={0}
             max={10000000}
+            minRequired={minIncomeRequired}
           />
 
           {/* Interest Rate Dropdown */}
@@ -301,71 +310,108 @@ export default function Calculator() {
           {/* Top Row - Key Metrics */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 md:mb-8">
             <ResultCard
-              title="Finanzierung möglich. Neue Hypothek bis:"
+              title={loanType === "purchase" ? "Finanzierung möglich. Neue Hypothek bis:" : "Neue Hypothek"}
               value={formatCHF(totalMortgageForCalc)}
+              highlight={isEligible}
             />
             <ResultCard
               title="Belehnung"
-              value={formatPercent(belehnungRefi)}
+              value={formatPercent(loanType === "purchase" ? belehnungPurchase : belehnungRefi)}
+              highlight={ltvOk}
             />
             <ResultCard
               title="Tragbarkeit"
               value={formatPercent(tragbarkeitPercent)}
+              highlight={affordabilityOk}
             />
           </div>
 
-          {/* Middle Row - Monthly Costs */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 md:mb-8">
-            <ResultCard
-              title="Bisherige monatliche Kosten"
-              value={formatCHF(monthlyOld)}
-              small
-            />
-            <ResultCard
-              title="Monatliche Gesamtkosten"
-              value={formatCHF(monthlyNew)}
-              small
-            />
-            <ResultCard
-              title="Zinsen"
-              value={formatCHF(monthlyInterest)}
-              small
-            />
-          </div>
+          {/* Middle Row - Monthly Costs (Refinancing) */}
+          {loanType === "refinancing" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 md:mb-8">
+              <ResultCard
+                title="Bisherige monatliche Kosten"
+                value={formatCHF(monthlyOld)}
+                small
+              />
+              <ResultCard
+                title="Neue monatliche Gesamtkosten"
+                value={formatCHF(monthlyNew)}
+                small
+                highlight={monthlyNew < monthlyOld}
+              />
+              <ResultCard
+                title="Ersparnis"
+                value={formatCHF(Math.max(0, monthlyOld - monthlyNew))}
+                small
+              />
+            </div>
+          )}
 
-          {/* Bottom Row - Additional Costs */}
+          {/* Middle Row - Monthly Costs (Purchase) */}
+          {loanType === "purchase" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 md:mb-8">
+              <ResultCard
+                title="Monatliche Zinsen"
+                value={formatCHF(monthlyInterest)}
+                small
+              />
+              <ResultCard
+                title="Unterhalt / Nebenkosten"
+                value={formatCHF(monthlyMaintenance)}
+                small
+              />
+              <ResultCard
+                title="Amortisation"
+                value={formatCHF(monthlyAmortization)}
+                small
+              />
+            </div>
+          )}
+
+          {/* Bottom Row - Total Monthly Cost */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
             <ResultCard
-              title="Unterhalt / Nebenkosten"
-              value={formatCHF(monthlyMaintenance)}
+              title="Monatliche Gesamtkosten"
+              value={formatCHF(monthlyCost)}
               small
             />
           </div>
 
-          {/* Risk Assessment */}
-          <div className="mt-6 md:mt-8 bg-[#E7F8EE] border border-[#7EE8C1] rounded-[8px] p-4 sm:p-5">
-            <div className="flex gap-3 items-start">
-              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[#7EE8C1] flex-shrink-0 mt-0.5">
-                <svg width="14" height="11" viewBox="0 0 14 11" fill="none">
-                  <path
-                    d="M1 5.5L5 9.5L13 1"
-                    stroke="#155E4A"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
-              <div>
-                <p className="text-xs sm:text-sm font-semibold text-[#155E4A] mb-1">
-                  Mortgage assessment
-                </p>
-                <p className="text-xs sm:text-sm text-[#155E4A] leading-relaxed">
-                  Your eligibility, affordability, and available equity are all within a healthy range, indicating a low financial risk.
-                </p>
+          {/* Eligibility Check */}
+          {loanType === "purchase" && (
+            <div className={`mt-6 md:mt-8 rounded-[8px] p-4 sm:p-5 ${isEligible ? "bg-[#E7F8EE] border border-[#7EE8C1]" : "bg-[#FEE2E2] border border-[#FCA5A5]"}`}>
+              <div className="flex gap-3 items-start">
+                <div className={`flex items-center justify-center w-6 h-6 rounded-full flex-shrink-0 mt-0.5 ${isEligible ? "bg-[#7EE8C1]" : "bg-[#FCA5A5]"}`}>
+                  {isEligible ? (
+                    <svg width="14" height="11" viewBox="0 0 14 11" fill="none">
+                      <path
+                        d="M1 5.5L5 9.5L13 1"
+                        stroke="#155E4A"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  ) : (
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path d="M9 3L3 9M3 3L9 9" stroke="#DC2626" strokeWidth="1.5" strokeLinecap="round"/>
+                    </svg>
+                  )}
+                </div>
+                <div>
+                  <p className={`text-xs sm:text-sm font-semibold mb-1 ${isEligible ? "text-[#155E4A]" : "text-[#DC2626]"}`}>
+                    {isEligible ? "Mortgage assessment" : "Eligibility check failed"}
+                  </p>
+                  <p className={`text-xs sm:text-sm leading-relaxed ${isEligible ? "text-[#155E4A]" : "text-[#DC2626]"}`}>
+                    {isEligible
+                      ? "Your eligibility, affordability, and available equity are all within a healthy range."
+                      : "Please check your inputs. LTV, affordability, or equity requirements not met."}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </section>
@@ -376,12 +422,17 @@ interface ResultCardProps {
   title: string;
   value: string;
   small?: boolean;
+  highlight?: boolean;
 }
 
-function ResultCard({ title, value, small = false }: ResultCardProps) {
+function ResultCard({ title, value, small = false, highlight = false }: ResultCardProps) {
   return (
-    <div className="flex flex-col gap-2 p-4 sm:p-5 border border-[#E5E7EB] rounded-[8px] bg-[#FAFAFA] hover:bg-white transition-colors">
-      <p className={`${small ? "text-xs sm:text-sm" : "text-sm sm:text-base"} font-medium text-[#666]`}>
+    <div className={`flex flex-col gap-2 p-4 sm:p-5 border rounded-[8px] ${
+      highlight
+        ? "border-[#10B981] bg-[#ECFDF5]"
+        : "border-[#E5E7EB] bg-[#FAFAFA]"
+    } hover:bg-white transition-colors`}>
+      <p className={`${small ? "text-xs sm:text-sm" : "text-sm sm:text-base"} font-medium ${highlight ? "text-[#059669]" : "text-[#666]"}`}>
         {title}
       </p>
       <p className={`${small ? "text-lg sm:text-xl" : "text-2xl sm:text-3xl"} font-bold text-[#222] leading-tight`}>
@@ -479,7 +530,7 @@ function SliderInput({ label, value, setValue, min, max, minRequired }: SliderIn
         }}
       />
 
-      {minRequired !== undefined && (
+      {minRequired !== undefined && minRequired > 0 && (
         <p className="text-xs text-[#666] text-right mt-1">
           Minimum: {Math.round(minRequired).toLocaleString("de-CH")} CHF
         </p>
