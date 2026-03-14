@@ -15,13 +15,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'POST') {
-    const { firstName, lastName, email, phone } = req.body;
+    const { firstName, lastName, email, phone, refSource } = req.body;
     if (!firstName || !lastName || !email || !phone) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
     try {
       const lead = await prisma.funnelLead.create({
-        data: { firstName, lastName, email, phone },
+        data: { firstName, lastName, email, phone, refSource },
       });
       return res.status(200).json({ success: true, lead });
     } catch (error) {

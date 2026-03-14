@@ -1,11 +1,15 @@
 "use client";
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import FunnelCalculator from "./FunnelCalculator";
 import FunnelContactForm from "./FunnelContactForm";
+
 
 export default function FunnelIframePage() {
   const [step, setStep] = useState(1);
   const [calcData, setCalcData] = useState<any>(null);
+  const searchParams = useSearchParams();
+  const refSource = searchParams?.get("ref") || "";
 
   return (
     <div className="w-full min-h-screen bg-white">
@@ -45,7 +49,7 @@ export default function FunnelIframePage() {
             >
               ← Zurück zum Rechner
             </button>
-            <FunnelContactForm />
+            <FunnelContactForm refSource={refSource} />
           </div>
         )}
       </div>

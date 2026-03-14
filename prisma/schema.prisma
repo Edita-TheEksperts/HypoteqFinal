@@ -183,5 +183,6 @@ model FunnelLead {
   lastName  String
   email     String
   phone     String
+  refSource String?  // Source website for iframe
   createdAt DateTime @default(now())
 }

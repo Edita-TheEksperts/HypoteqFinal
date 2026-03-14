@@ -7,6 +7,7 @@ interface FunnelLead {
   lastName: string;
   email: string;
   phone: string;
+  refSource?: string;
 }
 
 export default function PartnerLeads() {
@@ -32,7 +33,7 @@ export default function PartnerLeads() {
 
   return (
     <div className="flex flex-col items-center min-h-screen bg-[#132219] font-sfpro px-2 py-8">
-      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-card p-6 sm:p-8 flex flex-col gap-6">
+      <div className="w-full max-w-3xl bg-white rounded-2xl shadow-card p-6 sm:p-8 flex flex-col gap-6">
         <h2 className="text-3xl sm:text-4xl font-bold text-[#132219] mb-2 text-center tracking-tight">Partner-Leads</h2>
         <table className="w-full border-collapse">
           <thead>
@@ -41,6 +42,7 @@ export default function PartnerLeads() {
               <th className="p-2 text-left">Nachname</th>
               <th className="p-2 text-left">Telefon</th>
               <th className="p-2 text-left">E-Mail</th>
+              <th className="p-2 text-left">Partner/Quelle</th>
             </tr>
           </thead>
           <tbody>
@@ -50,6 +52,7 @@ export default function PartnerLeads() {
                 <td className="p-2">{lead.lastName}</td>
                 <td className="p-2">{lead.phone}</td>
                 <td className="p-2">{lead.email}</td>
+                <td className="p-2">{lead.refSource || "-"}</td>
               </tr>
             ))}
           </tbody>

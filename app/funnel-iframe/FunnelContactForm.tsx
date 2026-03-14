@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 
+
 interface FormData {
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
+  refSource?: string;
 }
 
 interface FormStatus {
@@ -14,12 +16,15 @@ interface FormStatus {
   message: string;
 }
 
-export default function FunnelContactForm() {
+type Props = { refSource?: string };
+
+export default function FunnelContactForm({ refSource }: Props) {
   const [form, setForm] = useState<FormData>({
     firstName: "",
     lastName: "",
     email: "",
-    phone: ""
+    phone: "",
+    refSource: refSource || ""
   });
 
   const [status, setStatus] = useState<FormStatus>({
@@ -46,7 +51,7 @@ export default function FunnelContactForm() {
       const res = await fetch("/api/funnel-lead", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form)
+        body: JSON.stringify({ ...form, refSource: refSource || "" })
       });
 
       if (res.ok) {
@@ -54,7 +59,7 @@ export default function FunnelContactForm() {
           type: "success",
           message: "Vielen Dank! Wir werden Sie bald kontaktieren."
         });
-        setForm({ firstName: "", lastName: "", email: "", phone: "" });
+        setForm({ firstName: "", lastName: "", email: "", phone: "", refSource: refSource || "" });
       } else {
         setStatus({
           type: "error",
